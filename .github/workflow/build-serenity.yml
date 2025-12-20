@@ -1,0 +1,52 @@
+name: Build SerenityOS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180  # 3 hours max
+    
+    steps:
+    - name: Checkout this repository
+      uses: actions/checkout@v4
+    
+    - name: Free up disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        df -h
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Set up ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: serenity-x86_64-gnu
+        max-size: 3G
+    
+    - name: Run build script
+      run: |
+        chmod +x build_serenity.py
+        python3 build_serenity.py
+    
+    - name: Upload disk image
+      uses: actions/upload-artifact@v4
+      with:
+        name: serenity-disk-image
+        path: |
+          *.img.gz
+          build-info.txt
+        retention-days: 30
+        compression-level: 0
