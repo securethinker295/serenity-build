@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180  # 3 hours max
+    timeout-minutes: 240  # 4 hours - toolchain build takes time
     
     steps:
     - name: Checkout this repository
@@ -18,11 +18,15 @@ jobs:
     
     - name: Free up disk space
       run: |
+        echo "Before cleanup:"
+        df -h
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/ghc
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo apt-get clean
         sudo docker image prune --all --force
+        echo "After cleanup:"
         df -h
     
     - name: Set up Python
@@ -30,23 +34,67 @@ jobs:
       with:
         python-version: '3.11'
     
+    # Install dependencies before running the script
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake curl libmpfr-dev libmpc-dev \
+          libgmp-dev e2fsprogs ninja-build qemu-system-gui \
+          qemu-system-x86 qemu-utils ccache rsync unzip \
+          texinfo libssl-dev zlib1g-dev \
+          gcc-14 g++-14 \
+          parted grub-efi-amd64-bin grub2-common \
+          autoconf automake bison flex gettext
+        
+        # Verify GCC 14
+        gcc-14 --version
+        g++-14 --version
+    
     - name: Set up ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        key: serenity-x86_64-gnu
-        max-size: 3G
+        key: serenity-x86_64-gnu-${{ github.sha }}
+        restore-keys: |
+          serenity-x86_64-gnu-
+        max-size: 5G
+    
+    - name: Configure ccache
+      run: |
+        ccache --set-config=max_size=5G
+        ccache --set-config=compression=true
+        ccache --set-config=compression_level=6
+        ccache -s
     
     - name: Run build script
       run: |
         chmod +x build_serenity.py
         python3 build_serenity.py
+      env:
+        CCACHE_DIR: ${{ github.workspace }}/.ccache
+    
+    - name: Show build statistics
+      if: always()
+      run: |
+        ccache -s
+        df -h
     
     - name: Upload disk image
       uses: actions/upload-artifact@v4
+      if: success()
       with:
-        name: serenity-disk-image
+        name: serenity-disk-image-${{ github.run_number }}
         path: |
           *.img.gz
           build-info.txt
         retention-days: 30
-        compression-level: 0
+        compression-level: 0  # Already compressed with gzip
+    
+    - name: Upload build logs on failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs-${{ github.run_number }}
+        path: |
+          serenity/Build/x86_64/**/*.log
+        retention-days: 7
