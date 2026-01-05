@@ -101,22 +101,22 @@ class SerenityBuilder:
         
         self.log("Dependencies installed successfully")
         
-    def build_toolchain(self):
-        """Build SerenityOS toolchain if needed"""
-        self.log("Building/updating SerenityOS toolchain...")
-        self.log("This may take a while on first run...")
+    # def build_toolchain(self):
+    #     """Build SerenityOS toolchain if needed"""
+    #     self.log("Building/updating SerenityOS toolchain...")
+    #     self.log("This may take a while on first run...")
         
-        env = os.environ.copy()
-        env["SERENITY_ARCH"] = self.arch
-        env["SERENITY_TOOLCHAIN"] = self.toolchain
+    #     env = os.environ.copy()
+    #     env["SERENITY_ARCH"] = self.arch
+    #     env["SERENITY_TOOLCHAIN"] = self.toolchain
         
-        # The serenity.sh script will automatically build the toolchain if needed
-        self.run_command(
-            f"./Toolchain/BuildIt.sh",
-            cwd=self.serenity_dir,
-            env=env
-        )
-        self.log("Toolchain ready")
+    #     # The serenity.sh script will automatically build the toolchain if needed
+    #     self.run_command(
+    #         f"./Toolchain/BuildIt.sh",
+    #         cwd=self.serenity_dir,
+    #         env=env
+    #     )
+    #     self.log("Toolchain ready")
         
     def build_serenity(self):
         """Build SerenityOS"""
@@ -248,7 +248,7 @@ class SerenityBuilder:
             
             self.clone_repository()
             self.install_dependencies()
-            self.build_toolchain()
+            # self.build_toolchain()
             self.build_serenity()
             self.build_grub_uefi_image()
             image_path = self.compress_image()
